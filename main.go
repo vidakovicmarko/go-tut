@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go-tut/helpers"
+	"sync"
 	"time"
 )
 
@@ -23,39 +24,42 @@ type UserData struct {
 	numberOfTickets uint
 }
 
+// wait group - waits for the launched goroutine to finish
+var wg = sync.WaitGroup{}
+
 func main() {
 	greetUsers()
 
-	for {
-		firstName, lastName, email, userTickets := getUserInput()
-		isValidName, isValidEmail, isValidTicketNumber := helpers.ValidateUserInput(firstName, lastName, email, userTickets, remainingTickets)
+	firstName, lastName, email, userTickets := getUserInput()
+	isValidName, isValidEmail, isValidTicketNumber := helpers.ValidateUserInput(firstName, lastName, email, userTickets, remainingTickets)
 
-		if isValidName && isValidEmail && isValidTicketNumber {
-			bookTicket(userTickets, firstName, lastName, email)
-			go sendTicket(userTickets, firstName, lastName, email) // go - start a new goroutine
+	if isValidName && isValidEmail && isValidTicketNumber {
+		bookTicket(userTickets, firstName, lastName, email)
+		wg.Add(1)                                              // sets the number of goroutines to wait for
+		go sendTicket(userTickets, firstName, lastName, email) // go - start a new goroutine
 
-			// firstNames := getFirstNames(bookings)
-			var firstNames []string = getFirstNames()
+		// firstNames := getFirstNames(bookings)
+		var firstNames []string = getFirstNames()
 
-			fmt.Printf("The first names of bookings are: %v\n", firstNames)
+		fmt.Printf("The first names of bookings are: %v\n", firstNames)
 
-			if remainingTickets == 0 {
-				// end program
-				fmt.Println("Our conference is booked out. Come back next year.")
-				break
-			}
-		} else {
-			if !isValidName {
-				fmt.Println("First name or last name you entered is to short")
-			}
-			if !isValidEmail {
-				fmt.Println("Email is not valid")
-			}
-			if !isValidTicketNumber {
-				fmt.Println("Number of tickets you entered is invalid")
-			}
+		if remainingTickets == 0 {
+			// end program
+			fmt.Println("Our conference is booked out. Come back next year.")
+			// break
+		}
+	} else {
+		if !isValidName {
+			fmt.Println("First name or last name you entered is to short")
+		}
+		if !isValidEmail {
+			fmt.Println("Email is not valid")
+		}
+		if !isValidTicketNumber {
+			fmt.Println("Number of tickets you entered is invalid")
 		}
 	}
+	wg.Wait() // blocks until the wait group counter is 0
 }
 
 func greetUsers() {
@@ -133,4 +137,5 @@ func sendTicket(userTickets uint, firstName string, lastName string, email strin
 	fmt.Println("################")
 	fmt.Printf("Sending ticket:\n %v \nto email address %v\n", ticket, email)
 	fmt.Println("################")
+	wg.Done() // decrements the wait group counter by 1, this is called by the goroutine to indicate that it's finished
 }
